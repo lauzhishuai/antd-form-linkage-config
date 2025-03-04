@@ -146,8 +146,8 @@ const renderChild = <T extends BaseChildProps>(child: React.ReactElement<T>, dis
   return React.cloneElement(child, newProps);
 };
 
-const FormItemTemp: React.FC<GetTempFieldDecoratorOptions | TempFormItemProps> = props => {
-  console.log('FormItemTempProps', props)
+const LinkageFormItem: React.FC<GetTempFieldDecoratorOptions | TempFormItemProps> = props => {
+  console.log('LinkageFormItemProps', props)
 
   // 服务端给的数据都是JSON串，需要转换成对应类型
   const JSONParseValue = (value) => {
@@ -188,7 +188,7 @@ const FormItemTemp: React.FC<GetTempFieldDecoratorOptions | TempFormItemProps> =
   }
 
   const itemTempConfig = (props.template || []).find(item => item.formName === props.name)
-  // console.log('formItemTempConfig', itemTempConfig)
+  // console.log('LinkageFormItemConfig', itemTempConfig)
 
   // 树形options value 格式化
   const JSONParseTreeValue = (value: OptionsType[]) => {
@@ -618,4 +618,4 @@ const FormItemTemp: React.FC<GetTempFieldDecoratorOptions | TempFormItemProps> =
   return <Form.Item label={label} name={name}  {...others} style={style}>{children}</Form.Item>
 }
 
-export default FormItemTemp
+export default LinkageFormItem

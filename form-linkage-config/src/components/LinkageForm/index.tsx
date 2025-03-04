@@ -28,7 +28,7 @@ interface LinkConfig {
   [key: string]: LinkConfigObj
 }
 
-interface FormTempProps extends FormProps {
+interface LinkageFormProps extends FormProps {
   linkConfig?: LinkConfig;
   children: React.ReactNode;
   onActiveItemChange?: (val: LinkConfigItem[]) => void
@@ -38,9 +38,7 @@ interface ChildProps {
   template: LinkConfigItem[];
 }
 
-const FormTemp: React.FC<FormTempProps> = (props: FormTempProps) => {
-  console.log('FormTempProps', props.children)
-  console.log('FormTempProps', React.isValidElement(props.children))
+const LinkageForm: React.FC<LinkageFormProps> = (props: LinkageFormProps) => {
   // const [finalLinkConfig, setFinalLinkConfig] = useState<LinkConfigItem[]>([]);
 
   const { linkConfig, onValuesChange, children, onActiveItemChange, ...restProps } = props;
@@ -112,7 +110,7 @@ const FormTemp: React.FC<FormTempProps> = (props: FormTempProps) => {
   const getLinkConfig = () => {
     try {
       if (linkConfig) {
-        const activeFormValueList = activeFormNameList.map(item => ({ [item]: form.getFieldValue(item) }));
+        const activeFormValueList = activeFormNameList.map(item => ({ [item]: item.includes('&') ? item.split('&').map(item => form.getFieldValue(item)).join('&') : form.getFieldValue(item) }));
         const activeFormItemConfigList: LinkConfigItem[] = [];
 
         activeFormValueList.forEach((item) => {
@@ -136,43 +134,71 @@ const FormTemp: React.FC<FormTempProps> = (props: FormTempProps) => {
   };
 
   const onValuesChangeTemp = (changedValues: any, allValues: any) => {
-    // 处理联动逻辑
-    if (linkConfig) {
-      try {
-        console.log('changedValues', changedValues)
-        // const testConfig = JSON.parse(JSON.stringify(testConfig11))
-        // 1.获取当前change项对应的联动配置
-        const changedFormName: string = Object.keys(changedValues)[0]
-        const config = linkConfig[changedFormName]
-        if (config) {
-          const changedFormValue = getFieldValue(changedFormName)
-          const curVConfig = config?.[changedFormValue] || []
-          console.log('curVConfig', curVConfig)
+    try {
+      // 处理联动逻辑
+      if (linkConfig) {
+        try {
+          console.log('changedValues', changedValues)
+          // 1.获取当前change项对应的联动配置
+          const changedFormName: string = Object.keys(changedValues)[0]
+          // 可能存在多个配置，自身作为主联动项的配置 + 和其他表单项联合的配置
+          const matchFormNames = activeFormNameList.filter(item => item?.split('&').includes(changedFormName))
+          console.log('matchFormName', matchFormNames)
+          const configs = matchFormNames.map(item => ({ name: item, config: linkConfig[item] }))
+          if (isArrayWithValue(configs)) {
+            configs.forEach(item => {
+              const changedFormName = item.name
+              const config = item.config
 
-          // 2.重置被联动字段值
-          if (isArrayWithValue(curVConfig)) {
-            curVConfig.forEach(item => {
-              const { formName, changeValue } = item
-              form.setFieldsValue({ [formName]: changeValue })
-              // todo：是否需要递推联动，目前项目无改场景，同时也为了避免死循环暂时不递推。后续看场景，如果有递推联动需求，再做处理，这是需要注意联动配置不能有死循环。不建议产品需求设计为这种及联方式，后期会难以维护。
+              const isUnitConfig = changedFormName.includes('&')
+              // 独立联动
+              if (!isUnitConfig) {
+                const changedFormValue = `${getFieldValue(changedFormName)}`
+                const curVConfig = config?.[changedFormValue] || []
+                console.log('curVConfig', curVConfig)
+
+                // 2.重置被联动字段值
+                if (isArrayWithValue(curVConfig)) {
+                  curVConfig.forEach(item => {
+                    const { formName, changeValue } = item
+                    form.setFieldsValue({ [formName]: changeValue })
+                    // todo：是否需要递推联动，目前项目无改场景，同时也为了避免死循环暂时不递推。后续看场景，如果有递推联动需求，再做处理，这是需要注意联动配置不能有死循环。不建议产品需求设计为这种及联方式，后期会难以维护。
+                  })
+                }
+              } else {
+                // 组合联动
+                const changedFormValues = changedFormName.split('&').map(item => getFieldValue(item))
+                const curVConfig = config?.[changedFormValues.join('&')] || []
+
+                // 2.重置被联动字段值
+                if (isArrayWithValue(curVConfig)) {
+                  curVConfig.forEach(item => {
+                    const { formName, changeValue } = item
+                    form.setFieldsValue({ [formName]: changeValue })
+                    // todo：是否需要递推联动，目前项目无改场景，同时也为了避免死循环暂时不递推。后续看场景，如果有递推联动需求，再做处理，这是需要注意联动配置不能有死循环。不建议产品需求设计为这种及联方式，后期会难以维护。
+                  })
+                }
+              }
             })
           }
-        }
 
-        // 3.获取全局模板配置（用于设置禁用、隐藏逻辑）
-        // 这里需要获取全局的配置项，所有主联动字段的配置合并为一份配置
-        const finConfig = getLinkConfig()
-        // setFinalLinkConfig(finConfig)
-        // console.log('finConfig', finalLinkConfig)
-        onActiveItemChange && onActiveItemChange(finConfig)
-      } catch (error) {
-        console.error('onFormValuesChange error', error)
+          // 3.获取全局模板配置（用于设置禁用、隐藏逻辑）
+          // 这里需要获取全局的配置项，所有主联动字段的配置合并为一份配置
+          const finConfig = getLinkConfig()
+          // setFinalLinkConfig(finConfig)
+          // console.log('finConfig', finalLinkConfig)
+          onActiveItemChange && onActiveItemChange(finConfig)
+        } catch (error) {
+          console.error('onFormValuesChange error', error)
+        }
       }
+      onValuesChange && onValuesChange?.(changedValues, allValues)
+    } catch (error) {
+      console.error('onValuesChangeTemp error', error)
     }
-    onValuesChange && onValuesChange?.(changedValues, allValues)
   }
 
-  /* 递归遍历children,为FormItemTemp组件注入template配置 */
+  /* 递归遍历children,为LinkageFormItem组件注入template配置 */
   // const renderChildren = (children: React.ReactNode): React.ReactNode => {
   //   console.log('children', children)
   //   return React.Children.map(children, child => {
@@ -190,8 +216,8 @@ const FormTemp: React.FC<FormTempProps> = (props: FormTempProps) => {
   //       }
   //     }
 
-  //     // 判断是否为FormItemTemp组件
-  //     if (isObject(child.type) && child.type.name === 'FormItemTemp') {
+  //     // 判断是否为LinkageFormItem组件
+  //     if (isObject(child.type) && child.type.name === 'LinkageFormItem') {
   //       // debugger
   //       return React.cloneElement(child, {
   //         template: finalLinkConfig,
@@ -214,4 +240,4 @@ const FormTemp: React.FC<FormTempProps> = (props: FormTempProps) => {
   </Form>
 }
 
-export default FormTemp
+export default LinkageForm
