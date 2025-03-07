@@ -14,7 +14,7 @@
     "prepare": "npm run build"
   },
   "peerDependencies": {
-    "antd": ">=4.24.0",
+    "antd": ">=4.20.1",
     "lodash": ">=4.17.0",
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"
