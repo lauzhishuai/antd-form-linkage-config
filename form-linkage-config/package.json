@@ -1,6 +1,6 @@
 {
   "name": "antd-form-linkage",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "Antd form linkage components",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -14,8 +14,8 @@
     "prepare": "npm run build"
   },
   "peerDependencies": {
-    "antd": "^4.24.0",
-    "lodash": "^4.17.0",
+    "antd": ">=4.24.0",
+    "lodash": ">=4.17.0",
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"
   },
