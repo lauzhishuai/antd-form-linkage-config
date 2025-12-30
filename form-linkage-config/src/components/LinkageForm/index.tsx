@@ -1,243 +1,168 @@
 /**
- * @description:  antd form 封装，onValuesChange 处理联动逻辑
+ * @description 联动表单组件
+ * 基于依赖图的响应式表单联动
  */
-import React from 'react'
-import { Form, FormInstance } from 'antd'
-import { FormProps } from 'antd/lib/form'
-import { isArrayWithValue } from '../../untils'
+import React, { useCallback, useMemo } from 'react';
+import { Form, FormInstance } from 'antd';
+import { FormProps } from 'antd/lib/form';
+import { LinkageProvider } from '../../context/LinkageContext';
+import { useLinkageEngine } from '../../hooks/useLinkage';
+import { LinkageConfig } from '../../types';
 
-interface OptionItem {
-  optionValue: number | string
-  disabled?: boolean
+/**
+ * 联动表单 Props
+ */
+export interface LinkageFormProps extends Omit<FormProps, 'form'> {
+  /**
+   * 联动配置
+   * @example
+   * ```tsx
+   * linkage={{
+   *   fields: [
+   *     {
+   *       name: 'city',
+   *       dependencies: ['province'],
+   *       compute: ({ province }) => ({
+   *         value: undefined,
+   *         options: getCityOptions(province),
+   *       }),
+   *     },
+   *   ],
+   *   debug: true,
+   * }}
+   * ```
+   */
+  linkage?: LinkageConfig;
+  
+  /**
+   * Form 实例（可选）
+   * 如果不传，组件内部会自动创建
+   */
+  form?: FormInstance;
+  
+  /**
+   * 子组件
+   */
+  children?: React.ReactNode;
 }
 
-export interface LinkConfigItem {
-  formName: string;
-  changeValue: any;
-  options?: OptionItem[];
-  hidden?: boolean;
-  disabled?: boolean;
-  hiddenAndSave?: boolean;
-}
+/**
+ * 联动表单组件
+ * 
+ * @description
+ * 包装了 antd Form，提供基于依赖图的响应式联动能力。
+ * 
+ * ## 特性
+ * - 🔗 声明式依赖关系
+ * - ⚡ 级联联动支持
+ * - 🔄 异步计算支持
+ * - 🐛 调试模式
+ * 
+ * ## 使用示例
+ * 
+ * ### 基础用法
+ * ```tsx
+ * <LinkageForm
+ *   linkage={{
+ *     fields: [
+ *       {
+ *         name: 'total',
+ *         dependencies: ['price', 'quantity'],
+ *         compute: ({ price, quantity }) => ({
+ *           value: price * quantity,
+ *         }),
+ *       },
+ *     ],
+ *   }}
+ * >
+ *   <LinkageFormItem name="price" label="单价">
+ *     <InputNumber />
+ *   </LinkageFormItem>
+ *   <LinkageFormItem name="quantity" label="数量">
+ *     <InputNumber />
+ *   </LinkageFormItem>
+ *   <LinkageFormItem name="total" label="总价">
+ *     <InputNumber disabled />
+ *   </LinkageFormItem>
+ * </LinkageForm>
+ * ```
+ * 
+ * ### 级联选择
+ * ```tsx
+ * <LinkageForm
+ *   linkage={{
+ *     fields: [
+ *       {
+ *         name: 'city',
+ *         dependencies: ['province'],
+ *         compute: async ({ province }) => ({
+ *           value: undefined,
+ *           options: await fetchCities(province),
+ *         }),
+ *       },
+ *       {
+ *         name: 'district',
+ *         dependencies: ['city'],
+ *         compute: async ({ city }) => ({
+ *           value: undefined,
+ *           options: await fetchDistricts(city),
+ *         }),
+ *       },
+ *     ],
+ *   }}
+ * >
+ *   ...
+ * </LinkageForm>
+ * ```
+ */
+const LinkageForm: React.FC<LinkageFormProps> = (props) => {
+  const {
+    linkage,
+    form: propForm,
+    onValuesChange,
+    children,
+    ...restProps
+  } = props;
 
-interface LinkConfigObj {
-  [key: string]: LinkConfigItem[]
-}
+  // 如果外部没有传 form，内部创建一个
+  const [internalForm] = Form.useForm();
+  const form = propForm || internalForm;
 
-interface LinkConfig {
-  [key: string]: LinkConfigObj
-}
+  // 创建联动引擎
+  const engine = useLinkageEngine(form, linkage);
 
-interface LinkageFormProps extends FormProps {
-  linkConfig?: LinkConfig;
-  children: React.ReactNode;
-  onActiveItemChange?: (val: LinkConfigItem[]) => void
-}
-
-interface ChildProps {
-  template: LinkConfigItem[];
-}
-
-const LinkageForm: React.FC<LinkageFormProps> = (props: LinkageFormProps) => {
-  // const [finalLinkConfig, setFinalLinkConfig] = useState<LinkConfigItem[]>([]);
-
-  const { linkConfig, onValuesChange, children, onActiveItemChange, ...restProps } = props;
-  // if (!children) return null;
-  const { form } = restProps as { form: FormInstance };
-  const { getFieldValue } = form
-  const activeFormNameList = linkConfig ? Object.keys(linkConfig) : []
-
-  // 最终处理完的联动配置
-  // let finalLinkConfig: LinkConfigItem[] = []
-
-  /* 聚合被联动字段的配置
-  表单值changeValue: 正常多个字段联动被联动字段，设置的值应该是不冲突的（否则是配置有问题）。设置当前change项对应的changeValue
-  表单项禁用disabled：一个为true即为true
-  表单项隐藏hidden：一个为true即为true
-  表单项隐藏但收集hiddenAndSave：一个为true即为true
-  表单可选项options{disabled}：一个为true即为true
-  configList: 所有主联动字段在当前选中下的配置（待合并）
-*/
-  const mergeLinkConfig = (config: LinkConfigItem[]) => {
-    try {
-      // 被联动表单项名称，用于记录已经合并的表单项
-      const configList = JSON.parse(JSON.stringify(config)) // 深拷贝，避免对内层原始配置数据的修改
-      const formNameList = new Set<string>()
-      const result = configList.reduce((prev: LinkConfigItem[], next: LinkConfigItem) => {
-        // 相同formName的配置项做合并
-        if (formNameList.has(next?.formName)) {
-          const existingConfig = prev.find(item => item.formName === next?.formName)
-          if (existingConfig) {
-            existingConfig.disabled = existingConfig?.disabled || next?.disabled
-            existingConfig.hidden = existingConfig?.hidden || next?.hidden
-            existingConfig.hiddenAndSave = existingConfig?.hiddenAndSave || next?.hiddenAndSave
-            // 合并options
-            if (next?.options) {
-              const tempOptions = existingConfig?.options || []
-              const nextOptions = next?.options || []
-              if (isArrayWithValue(tempOptions)) {
-                const options = tempOptions.map((item) => {
-                  const nextItem = nextOptions.find(nextItem => nextItem.optionValue === item.optionValue)
-                  if (nextItem) {
-                    return {
-                      ...item,
-                      disabled: item?.disabled || nextItem?.disabled,
-                    }
-                  }
-                  return item
-                })
-                existingConfig.options = options
-              } else {
-                existingConfig.options = nextOptions
-              }
-            }
-          }
-        } else {
-          // 没有相同formName的配置项直接推入
-          formNameList.add(next?.formName)
-          prev.push({ ...next })
-        }
-        return prev
-      }, [])
-      return result || []
-    } catch (error) {
-      console.error('mergeLinkConfig error', error)
-      return []
-    }
-  }
-
-  // 获取配置，依据主联动字段生成模板组件需要的配置
-  const getLinkConfig = () => {
-    try {
-      if (linkConfig) {
-        const activeFormValueList = activeFormNameList.map(item => ({ [item]: item.includes('&') ? item.split('&').map(item => form.getFieldValue(item)).join('&') : form.getFieldValue(item) }));
-        const activeFormItemConfigList: LinkConfigItem[] = [];
-
-        activeFormValueList.forEach((item) => {
-          const [key, value] = Object.entries(item)[0];
-          const tempKeyConfig = linkConfig[key];
-          const tempKeyValueConfig = tempKeyConfig?.[value] || [];
-
-          // 确保 tempKeyValueConfig 是数组
-          if (Array.isArray(tempKeyValueConfig)) {
-            activeFormItemConfigList.push(...tempKeyValueConfig);
-          }
-        });
-
-        return mergeLinkConfig(activeFormItemConfigList);
+  // 处理值变化
+  const handleValuesChange = useCallback(
+    async (changedValues: Record<string, any>, allValues: Record<string, any>) => {
+      // 1. 先执行联动逻辑
+      if (engine) {
+        await engine.handleChange(changedValues, allValues);
       }
-      return [];
-    } catch (error) {
-      console.error('getLinkConfig error', error);
-      return [];
-    }
-  };
 
-  const onValuesChangeTemp = (changedValues: any, allValues: any) => {
-    try {
-      // 处理联动逻辑
-      if (linkConfig) {
-        try {
-          console.log('changedValues', changedValues)
-          // 1.获取当前change项对应的联动配置
-          const changedFormName: string = Object.keys(changedValues)[0]
-          // 可能存在多个配置，自身作为主联动项的配置 + 和其他表单项联合的配置
-          const matchFormNames = activeFormNameList.filter(item => item?.split('&').includes(changedFormName))
-          console.log('matchFormName', matchFormNames)
-          const configs = matchFormNames.map(item => ({ name: item, config: linkConfig[item] }))
-          if (isArrayWithValue(configs)) {
-            configs.forEach(item => {
-              const changedFormName = item.name
-              const config = item.config
-
-              const isUnitConfig = changedFormName.includes('&')
-              // 独立联动
-              if (!isUnitConfig) {
-                const changedFormValue = `${getFieldValue(changedFormName)}`
-                const curVConfig = config?.[changedFormValue] || []
-                console.log('curVConfig', curVConfig)
-
-                // 2.重置被联动字段值
-                if (isArrayWithValue(curVConfig)) {
-                  curVConfig.forEach(item => {
-                    const { formName, changeValue } = item
-                    form.setFieldsValue({ [formName]: changeValue })
-                    // todo：是否需要递推联动，目前项目无改场景，同时也为了避免死循环暂时不递推。后续看场景，如果有递推联动需求，再做处理，这是需要注意联动配置不能有死循环。不建议产品需求设计为这种及联方式，后期会难以维护。
-                  })
-                }
-              } else {
-                // 组合联动
-                const changedFormValues = changedFormName.split('&').map(item => getFieldValue(item))
-                const curVConfig = config?.[changedFormValues.join('&')] || []
-
-                // 2.重置被联动字段值
-                if (isArrayWithValue(curVConfig)) {
-                  curVConfig.forEach(item => {
-                    const { formName, changeValue } = item
-                    form.setFieldsValue({ [formName]: changeValue })
-                    // todo：是否需要递推联动，目前项目无改场景，同时也为了避免死循环暂时不递推。后续看场景，如果有递推联动需求，再做处理，这是需要注意联动配置不能有死循环。不建议产品需求设计为这种及联方式，后期会难以维护。
-                  })
-                }
-              }
-            })
-          }
-
-          // 3.获取全局模板配置（用于设置禁用、隐藏逻辑）
-          // 这里需要获取全局的配置项，所有主联动字段的配置合并为一份配置
-          const finConfig = getLinkConfig()
-          // setFinalLinkConfig(finConfig)
-          // console.log('finConfig', finalLinkConfig)
-          onActiveItemChange && onActiveItemChange(finConfig)
-        } catch (error) {
-          console.error('onFormValuesChange error', error)
-        }
+      // 2. 调用用户的 onValuesChange
+      if (onValuesChange) {
+        // 获取更新后的值
+        const updatedValues = form.getFieldsValue(true);
+        onValuesChange(changedValues, updatedValues);
       }
-      onValuesChange && onValuesChange?.(changedValues, allValues)
-    } catch (error) {
-      console.error('onValuesChangeTemp error', error)
-    }
-  }
+    },
+    [engine, onValuesChange, form]
+  );
 
-  /* 递归遍历children,为LinkageFormItem组件注入template配置 */
-  // const renderChildren = (children: React.ReactNode): React.ReactNode => {
-  //   console.log('children', children)
-  //   return React.Children.map(children, child => {
-  //     if (!React.isValidElement(child)) {
-  //       return child;
-  //     }
+  // 获取 debug 模式
+  const debug = linkage?.debug ?? false;
 
-  //     if (isArrayWithValue(child?.props?.dependencies)) {
-  //       debugger
-  //       const tempChild = child.props.children
-  //       if (typeof tempChild === 'function') {
-  //         const childComponent = tempChild as () => React.ReactNode;
-  //         console.log('childComponent', childComponent)
-  //         return renderChildren(childComponent());
-  //       }
-  //     }
+  return (
+    <LinkageProvider engine={engine} debug={debug}>
+      <Form {...restProps} form={form} onValuesChange={handleValuesChange}>
+        {children}
+      </Form>
+    </LinkageProvider>
+  );
+};
 
-  //     // 判断是否为LinkageFormItem组件
-  //     if (isObject(child.type) && child.type.name === 'LinkageFormItem') {
-  //       // debugger
-  //       return React.cloneElement(child, {
-  //         template: finalLinkConfig,
-  //         required: true
-  //       } as ChildProps);
-  //     }
+// 导出组件
+export default LinkageForm;
 
-  //     // 递归处理子节点
-  //     if (React.isValidElement(child?.props?.children)) {
-  //       const newChildren = renderChildren(child.props.children);
-  //       return React.cloneElement(child, {}, newChildren);
-  //     }
-
-  //     return child;
-  //   });
-  // }
-
-  return <Form {...restProps} onValuesChange={onValuesChangeTemp}>
-    {children}
-  </Form>
-}
-
-export default LinkageForm
+// 导出类型
+export type { LinkageConfig };
