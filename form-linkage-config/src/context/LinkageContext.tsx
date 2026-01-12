@@ -3,7 +3,7 @@
  * 提供全局联动状态管理
  */
 
-import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from 'react';
 import { LinkageContextValue, FieldState, LinkageEngine } from '../types';
 
 /**
@@ -60,47 +60,56 @@ export function useLinkageContext(): LinkageContextValue {
 
 /**
  * 订阅单个字段状态
- * 使用 useSyncExternalStore 实现精确的状态订阅
+ * 兼容 React 17 的实现
  */
 export function useFieldState(name: string): FieldState | undefined {
   const { engine } = useLinkageContext();
+  const [state, setState] = useState<FieldState | undefined>(() => 
+    engine?.getFieldState(name)
+  );
 
-  const subscribe = useMemo(() => {
-    if (!engine) {
-      return (callback: () => void) => () => {};
-    }
-    return (callback: () => void) => {
-      return engine.subscribe(callback);
-    };
-  }, [engine]);
+  useEffect(() => {
+    if (!engine) return;
 
-  const getSnapshot = useMemo(() => {
-    return () => engine?.getFieldState(name);
+    // 初始化状态
+    setState(engine.getFieldState(name));
+
+    // 订阅状态变化
+    const unsubscribe = engine.subscribe((allStates) => {
+      setState(allStates.get(name));
+    });
+
+    return unsubscribe;
   }, [engine, name]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return state;
 }
 
 /**
  * 订阅所有字段状态
+ * 兼容 React 17 的实现
  */
 export function useAllFieldStates(): Map<string, FieldState> {
   const { engine } = useLinkageContext();
+  const [states, setStates] = useState<Map<string, FieldState>>(() => 
+    engine?.getAllFieldStates() || new Map()
+  );
 
-  const subscribe = useMemo(() => {
-    if (!engine) {
-      return (callback: () => void) => () => {};
-    }
-    return (callback: () => void) => {
-      return engine.subscribe(callback);
-    };
+  useEffect(() => {
+    if (!engine) return;
+
+    // 初始化状态
+    setStates(engine.getAllFieldStates());
+
+    // 订阅状态变化
+    const unsubscribe = engine.subscribe((allStates) => {
+      setStates(new Map(allStates));
+    });
+
+    return unsubscribe;
   }, [engine]);
 
-  const getSnapshot = useMemo(() => {
-    return () => engine?.getAllFieldStates() || new Map();
-  }, [engine]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return states;
 }
 
 export { LinkageContext };

@@ -269,7 +269,7 @@ export function createLinkageEngine(
     }
 
     if (debug) {
-      console.log('[Linkage] 受影响的字段:', [...affected]);
+      console.log('[Linkage] 受影响的字段:', Array.from(affected));
     }
 
     // 2. 拓扑排序
@@ -313,7 +313,7 @@ export function createLinkageEngine(
    */
   async function recompute(fieldNames?: string[]): Promise<void> {
     const allValues = form.getFieldsValue(true);
-    const targetFields = fieldNames || [...nodeMap.keys()];
+    const targetFields = fieldNames || Array.from(nodeMap.keys());
 
     // 获取所有受影响的字段
     const affected = new Set(targetFields);

@@ -306,7 +306,7 @@ export function convertLegacyConfig(legacy: LegacyLinkConfig): LinkageConfig {
   const fields: FieldNode[] = [];
 
   affectedFields.forEach((data, fieldName) => {
-    const dependencies = [...new Set(data.triggers.map((t) => t.field))];
+    const dependencies = Array.from(new Set(data.triggers.map((t) => t.field)));
 
     fields.push({
       name: fieldName,
