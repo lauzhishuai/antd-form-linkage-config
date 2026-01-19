@@ -65,8 +65,9 @@ function mergeOptions(
     return componentOptions;
   }
 
+  // 如果组件没有提供 options，则直接使用联动配置的 options
   if (!componentOptions || componentOptions.length === 0) {
-    return componentOptions;
+    return cloneDeep(configOptions);
   }
 
   const optionsCopy = cloneDeep(componentOptions);
@@ -109,15 +110,18 @@ function wrapChildren(
     const existingOptions = children.props.options;
     const existingTreeData = children.props.treeData;
 
-    if (existingOptions) {
+    if (existingOptions !== undefined) {
       // Select, Radio.Group, Checkbox.Group 等使用 options 属性
       childProps.options = mergeOptions(existingOptions, configOptions);
-    } else if (existingTreeData) {
+    } else if (existingTreeData !== undefined) {
       // TreeSelect 使用 treeData 属性
       childProps.treeData = mergeOptions(existingTreeData, configOptions);
-    } else if (type === 'Cascader' && children.props.options) {
-      // Cascader
-      childProps.options = mergeOptions(children.props.options, configOptions);
+    } else if (type === 'TreeSelect') {
+      // TreeSelect 未提供 treeData 时，直接注入
+      childProps.treeData = cloneDeep(configOptions);
+    } else if (type === 'Select' || type === 'Radio' || type === 'Checkbox' || type === 'Cascader') {
+      // 常见 options 场景，直接注入
+      childProps.options = cloneDeep(configOptions);
     }
   }
 
@@ -156,7 +160,26 @@ function wrapChildren(
 const LinkageFormItem: React.FC<LinkageFormItemProps> = (props) => {
   const { name, type, children, isEdit, hidden, ...restProps } = props;
 
-  // 从联动上下文获取字段状态
+  // LinkageContext.tsx 第 65-86 行
+  /* 
+  export function useFieldState(name: string) {
+    const { engine } = useLinkageContext();
+    const [state, setState] = useState();
+
+    useEffect(() => {
+      // 🔑 关键：注册订阅，当引擎状态变化时更新组件状态
+      const unsubscribe = engine.subscribe((allStates) => {
+       // 这是个回掉函数listener，当引擎状态变化时使用notifyListeners调用回调通知所有订阅者
+        setState(allStates.get(name));  // 只取自己关心的字段
+      });
+
+      return unsubscribe;  // 组件卸载时取消订阅
+    }, [engine, name]);
+
+    return state;
+  }
+  */
+  // 从联动上下文获取字段状态（配置状态并订阅状态变化）
   const fieldState = useFieldState(name);
 
   // 计算表单项属性

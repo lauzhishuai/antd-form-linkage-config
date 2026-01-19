@@ -51,7 +51,7 @@ export function buildDependencyGraph(fields: FieldNode[]): {
 }
 
 /**
- * 获取所有受影响的字段（BFS 遍历依赖图）
+ * 获取所有受影响的字段（BFS 广度优先遍历依赖图）
  * @param changedFields 发生变化的字段
  * @param graph 依赖图
  * @returns 所有受影响的字段集合
@@ -201,6 +201,7 @@ export function createLinkageEngine(
     const node = nodeMap.get(fieldName);
     if (!node?.compute) return null;
 
+    // 获取所依赖字段的当前值
     const deps = getDepsValues(node.dependencies, allValues);
 
     if (debug) {
@@ -209,6 +210,7 @@ export function createLinkageEngine(
 
     try {
       updateFieldState(fieldName, { loading: true, error: undefined });
+      // 执行联动函数，result即联动后产出的disabled、hidden、hiddenAndSave、options、required、rules等
       const result = await node.compute(deps, form, allValues);
       updateFieldState(fieldName, { ...result, loading: false });
       return result;
@@ -245,7 +247,7 @@ export function createLinkageEngine(
   }
 
   /**
-   * 处理值变化（核心入口）
+   * 处理值变化（核心入口） 
    */
   async function handleChange(
     changedValues: Record<string, any>,
@@ -279,7 +281,7 @@ export function createLinkageEngine(
       console.log('[Linkage] 计算顺序:', sortedFields);
     }
 
-    // 3. 按顺序计算，处理级联更新
+    // 3. 按顺序计算，处理级联更新(更新各字段的联动状态，返回待更新的表单值)
     const valuesToSet = await computeFields(sortedFields, allValues);
 
     // 4. 批量更新表单值
@@ -348,6 +350,7 @@ export function createLinkageEngine(
   function subscribe(
     listener: (states: Map<string, FieldState>) => void
   ): () => void {
+    //listener:每个表单项中配置的回调函数(allStates) => {setState(allStates.get(name))})
     listeners.add(listener);
     return () => {
       listeners.delete(listener);

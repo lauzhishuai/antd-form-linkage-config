@@ -65,7 +65,13 @@ const BasicDemo: React.FC = () => {
               ],
             };
           }
-          return {};
+          return {
+            options: [
+              { value: 'option1', disabled: false },
+              { value: 'option2', disabled: false },
+              { value: 'option3', disabled: false },
+            ],
+          };
         },
       },
     ],
