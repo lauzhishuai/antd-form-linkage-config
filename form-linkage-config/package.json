@@ -1,12 +1,27 @@
 {
   "name": "antd-form-linkage",
-  "version": "1.0.11",
+  "version": "2.0.1",
   "description": "Antd form linkage components",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": [
+    "*.css",
+    "**/*.css"
+  ],
+  "style": "dist/styles.css",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "rollup -c",
@@ -16,7 +31,7 @@
     "prepare": "npm run build"
   },
   "peerDependencies": {
-    "antd": ">=4.20.1",
+    "antd": ">=4.20.0",
     "lodash": ">=4.17.0",
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"
@@ -29,7 +44,11 @@
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "antd": "^4.24.0",
+    "lodash": "^4.17.21",
     "postcss": "^8.5.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "rollup": "^2.70.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
@@ -38,9 +57,5 @@
     "vite": "^5.0.12"
   },
   "dependencies": {
-    "antd": "^5.12.0",
-    "lodash": "^4.17.21",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
   }
 }

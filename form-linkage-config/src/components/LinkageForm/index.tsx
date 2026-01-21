@@ -155,8 +155,8 @@ const LinkageForm: React.FC<LinkageFormProps> = (props) => {
   return (
     <LinkageProvider engine={engine} debug={debug}>
       <Form {...restProps} form={form} onValuesChange={handleValuesChange}>
-        {children}
-      </Form>
+    {children}
+  </Form>
     </LinkageProvider>
   );
 };

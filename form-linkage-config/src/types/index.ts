@@ -35,6 +35,8 @@ export interface OptionConfig {
   label?: React.ReactNode;
   /** 禁用状态 */
   disabled?: boolean;
+  /** 隐藏状态 */
+  hidden?: boolean;
   /** 子选项（用于级联选择、树选择等） */
   children?: OptionConfig[];
 }
@@ -121,6 +123,12 @@ export interface LinkageEngine {
   /** 获取所有字段状态 */
   getAllFieldStates: () => Map<string, FieldState>;
   
+  /** 获取依赖图 */
+  getGraphs: () => {
+    dependencyGraph: Map<string, Set<string>>;
+    reverseDependencyGraph: Map<string, Set<string>>;
+  };
+
   /** 手动触发字段重新计算 */
   recompute: (fieldNames?: string[]) => Promise<void>;
   

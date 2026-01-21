@@ -31,8 +31,6 @@ export default {
       sourceMap: true,
     }),
     postcss({
-      // 将 CSS 注入到 head 中
-      inject: true,
       // 最小化 CSS
       minimize: true,
       // 生成 sourcemap
@@ -41,5 +39,9 @@ export default {
       extract: 'styles.css',
     }),
   ],
-  external: ['react', 'react-dom', 'antd', 'lodash'],
+  external: (id) =>
+    /^react(\/|$)/.test(id) ||
+    /^react-dom(\/|$)/.test(id) ||
+    /^antd(\/|$)/.test(id) ||
+    /^lodash(\/|$)/.test(id),
 }

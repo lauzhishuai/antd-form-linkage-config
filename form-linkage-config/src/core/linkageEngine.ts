@@ -212,7 +212,24 @@ export function createLinkageEngine(
       updateFieldState(fieldName, { loading: true, error: undefined });
       // 执行联动函数，result即联动后产出的disabled、hidden、hiddenAndSave、options、required、rules等
       const result = await node.compute(deps, form, allValues);
-      updateFieldState(fieldName, { ...result, loading: false });
+      // 当本次计算未返回某些字段状态时，清除上一次的对应状态
+      const normalizedResult: FieldComputeResult & {
+        options?: FieldComputeResult['options'];
+        disabled?: FieldComputeResult['disabled'];
+        hidden?: FieldComputeResult['hidden'];
+      } = {
+        ...result,
+      };
+      if (!('options' in result)) {
+        normalizedResult.options = undefined;
+      }
+      if (!('disabled' in result)) {
+        normalizedResult.disabled = undefined;
+      }
+      if (!('hidden' in result)) {
+        normalizedResult.hidden = undefined;
+      }
+      updateFieldState(fieldName, { ...normalizedResult, loading: false });
       return result;
     } catch (error) {
       console.error(`[Linkage] 计算字段 ${fieldName} 出错:`, error);
@@ -311,6 +328,16 @@ export function createLinkageEngine(
   }
 
   /**
+   * 获取依赖图
+   */
+  function getGraphs() {
+    return {
+      dependencyGraph: state.dependencyGraph,
+      reverseDependencyGraph: state.reverseDependencyGraph,
+    };
+  }
+
+  /**
    * 手动触发重新计算
    */
   async function recompute(fieldNames?: string[]): Promise<void> {
@@ -369,6 +396,7 @@ export function createLinkageEngine(
     handleChange,
     getFieldState,
     getAllFieldStates,
+    getGraphs,
     recompute,
     reset,
     subscribe,

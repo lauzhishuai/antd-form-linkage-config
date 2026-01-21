@@ -42,13 +42,13 @@ const BasicDemo: React.FC = () => {
         compute: ({ triggerField }) => {
           switch (triggerField) {
             case 'disable':
-              return { disabled: true, value: undefined };
+              return { disabled: true};
             case 'hide':
-              return { hidden: true, value: undefined };
+              return { hidden: true };
             case 'setValue':
-              return { disabled: false, hidden: false, value: '自动填充的值' };
+              return { value: '自动填充的值' };
             default:
-              return { disabled: false, hidden: false };
+              return { };
           }
         },
       },
@@ -72,6 +72,22 @@ const BasicDemo: React.FC = () => {
               { value: 'option3', disabled: false },
             ],
           };
+        },
+      },
+      {
+        name: 'optionsField2',
+        dependencies: ['triggerField'],
+        compute: ({ triggerField }) => {
+          if (triggerField === 'disableOption') {
+            return {
+              options: [
+                { value: 'option1', disabled: true },
+                { value: 'option2', disabled: false },
+                { value: 'option3', disabled: true },
+              ],
+            };
+          }
+          return {} ;
         },
       },
     ],
@@ -103,13 +119,15 @@ const BasicDemo: React.FC = () => {
 
         <LinkageFormItem name="optionsField" label="选项联动" type="Select">
           <Select
-            placeholder="选择一个选项"
-            options={[
-              { value: 'option1', label: '选项 1' },
-              { value: 'option2', label: '选项 2' },
-              { value: 'option3', label: '选项 3' },
-            ]}
-          />
+            placeholder="选择一个选项">
+            <Select.Option value="option1">选项 1</Select.Option>
+            <Select.Option value="option2">选项 2</Select.Option>
+            <Select.Option value="option3">选项 3</Select.Option>
+          </Select>
+        </LinkageFormItem>
+        <LinkageFormItem name="optionsField2" label="选项联动" type="Select">
+          <Select
+            options={[{ value: 'option1', label: '选项 1' }, { value: 'option2', label: '选项 2' }, { value: 'option3', label: '选项 3' }]}></Select>
         </LinkageFormItem>
 
         <LinkageDevTools defaultOpen position="bottom-right" />
@@ -577,7 +595,7 @@ const App: React.FC = () => {
 
       <footer className="app-footer">
         <p>
-          Made with ❤️ | 
+          Made with ❤️ |
           <a
             href="https://github.com/your-repo/antd-form-linkage"
             target="_blank"

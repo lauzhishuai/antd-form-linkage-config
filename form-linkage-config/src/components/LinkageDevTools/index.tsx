@@ -45,6 +45,7 @@ const StatusBadge: React.FC<{ status: boolean | undefined; label: string }> = ({
 const FieldCard: React.FC<{ name: string; state: FieldState }> = ({ name, state }) => {
   const [expanded, setExpanded] = useState(false);
 
+              console.log("🚀 ~ FieldCard ~ JSON.stringify(state.value, null, 2):", JSON.stringify(state.value, null, 2))
   return (
     <div className="linkage-devtools-field-card">
       <div
@@ -222,7 +223,6 @@ const LinkageDevTools: React.FC<LinkageDevToolsProps> = ({
  */
 const DependencyGraph: React.FC = () => {
   const { engine } = useLinkageContext();
-  const fieldStates = useAllFieldStates();
 
   if (!engine) {
     return (
@@ -232,7 +232,11 @@ const DependencyGraph: React.FC = () => {
     );
   }
 
-  const fieldNames = Array.from(fieldStates.keys());
+  const { dependencyGraph, reverseDependencyGraph } = engine.getGraphs();
+  const allFields = new Set<string>();
+  Array.from(dependencyGraph.keys()).forEach((k) => allFields.add(k));
+  Array.from(reverseDependencyGraph.keys()).forEach((k) => allFields.add(k));
+  const fieldNames = Array.from(allFields);
 
   if (fieldNames.length === 0) {
     return (
@@ -247,42 +251,32 @@ const DependencyGraph: React.FC = () => {
 
   return (
     <div className="linkage-devtools-graph-content">
-      <div className="linkage-devtools-graph-legend">
-        <span className="linkage-devtools-legend-item">
-          <span className="linkage-devtools-node-sample normal" />
-          正常
-        </span>
-        <span className="linkage-devtools-legend-item">
-          <span className="linkage-devtools-node-sample disabled" />
-          禁用
-        </span>
-        <span className="linkage-devtools-legend-item">
-          <span className="linkage-devtools-node-sample hidden" />
-          隐藏
-        </span>
-      </div>
-      
-      <div className="linkage-devtools-nodes">
-        {fieldNames.map((name) => {
-          const state = fieldStates.get(name);
-          let nodeClass = 'linkage-devtools-node';
-          if (state?.disabled) nodeClass += ' disabled';
-          if (state?.hidden) nodeClass += ' hidden';
-          if (state?.loading) nodeClass += ' loading';
-          
-          return (
-            <div key={name} className={nodeClass}>
-              <span className="linkage-devtools-node-name">{name}</span>
-              {state?.value !== undefined && (
-                <span className="linkage-devtools-node-value">
-                  {typeof state.value === 'object' 
-                    ? JSON.stringify(state.value) 
-                    : String(state.value)}
-                </span>
-              )}
-            </div>
-          );
-        })}
+      <div className="linkage-devtools-graph-section">
+        <h4 className="linkage-devtools-graph-title">字段依赖关系</h4>
+        <div className="linkage-devtools-graph-list">
+          {fieldNames.map((name) => {
+            const deps = Array.from(reverseDependencyGraph.get(name) || []);
+            const dependents = Array.from(dependencyGraph.get(name) || []);
+
+            return (
+              <div key={name} className="linkage-devtools-graph-item">
+                <div className="linkage-devtools-graph-item-name">{name}</div>
+                <div className="linkage-devtools-graph-item-row">
+                  <span className="linkage-devtools-graph-label">依赖:</span>
+                  <span className="linkage-devtools-graph-value">
+                    {deps.length > 0 ? deps.join(', ') : '无'}
+                  </span>
+                </div>
+                <div className="linkage-devtools-graph-item-row">
+                  <span className="linkage-devtools-graph-label">影响:</span>
+                  <span className="linkage-devtools-graph-value">
+                    {dependents.length > 0 ? dependents.join(', ') : '无'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -302,6 +302,56 @@
   padding: 8px 0;
 }
 
+.linkage-devtools-graph-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.linkage-devtools-graph-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccd6f6;
+  padding: 0 4px;
+}
+
+.linkage-devtools-graph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linkage-devtools-graph-item {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.linkage-devtools-graph-item-name {
+  font-weight: 600;
+  color: #64ffda;
+  margin-bottom: 6px;
+}
+
+.linkage-devtools-graph-item-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.linkage-devtools-graph-label {
+  color: #5a6a8a;
+  font-size: 11px;
+  min-width: 36px;
+}
+
+.linkage-devtools-graph-value {
+  color: #ccd6f6;
+  font-size: 12px;
+}
+
 .linkage-devtools-graph-legend {
   display: flex;
   gap: 16px;

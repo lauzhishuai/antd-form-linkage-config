@@ -65,16 +65,20 @@ function mergeOptions(
     return componentOptions;
   }
 
-  // 如果组件没有提供 options，则直接使用联动配置的 options
+  // 如果组件没有提供 options，则直接返回组件空options
   if (!componentOptions || componentOptions.length === 0) {
-    return cloneDeep(configOptions);
+    return componentOptions;
   }
 
   const optionsCopy = cloneDeep(componentOptions);
 
-  return optionsCopy.map((item) => {
+  return optionsCopy
+    .map((item) => {
     const config = configOptions.find((c) => c.value === item[keyField]);
     if (config) {
+      if (config.hidden) {
+        return null;
+      }
       return {
         ...item,
         disabled: config.disabled ?? item.disabled,
@@ -82,7 +86,8 @@ function mergeOptions(
       };
     }
     return item;
-  });
+  })
+    .filter(Boolean);
 }
 
 /**
@@ -110,19 +115,41 @@ function wrapChildren(
     const existingOptions = children.props.options;
     const existingTreeData = children.props.treeData;
 
+    // 只对已存在的 options/treeData 做“禁用/隐藏”合并，不注入新 options
     if (existingOptions !== undefined) {
       // Select, Radio.Group, Checkbox.Group 等使用 options 属性
       childProps.options = mergeOptions(existingOptions, configOptions);
     } else if (existingTreeData !== undefined) {
       // TreeSelect 使用 treeData 属性
       childProps.treeData = mergeOptions(existingTreeData, configOptions);
-    } else if (type === 'TreeSelect') {
-      // TreeSelect 未提供 treeData 时，直接注入
-      childProps.treeData = cloneDeep(configOptions);
-    } else if (type === 'Select' || type === 'Radio' || type === 'Checkbox' || type === 'Cascader') {
-      // 常见 options 场景，直接注入
-      childProps.options = cloneDeep(configOptions);
     }
+  }
+
+  // 3. 处理 children 形式的选项（如 <Select.Option /> / <Radio /> / <Checkbox />）
+  if (
+    configOptions &&
+    configOptions.length > 0 &&
+    children.props.children &&
+    (type === 'Select' || type === 'Radio' || type === 'Checkbox')
+  ) {
+    const configMap = new Map(
+      configOptions.map((item) => [item.value, item])
+    );
+
+    const clonedChildren = React.Children.map(children.props.children, (child) => {
+      if (!React.isValidElement(child)) return child;
+      const childProps = child.props as { value?: string | number; disabled?: boolean };
+      const value = childProps.value;
+      if (value === undefined) return child;
+      const config = configMap.get(value);
+      if (!config) return child;
+      if (config.hidden) return null;
+      return React.cloneElement(child as React.ReactElement<any>, {
+        disabled: config.disabled ?? childProps.disabled,
+      });
+    });
+
+    childProps.children = clonedChildren;
   }
 
   // 如果没有需要更新的属性，直接返回原组件
